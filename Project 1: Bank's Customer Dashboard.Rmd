@@ -1,0 +1,155 @@
+---
+title: "Bank Credit's Customer Dashboard"
+author: "MinhChau"
+output: 
+  html_document: default
+---
+
+```{css, echo=FALSE}
+
+.rpivotTable{ overflow-x: scroll; }
+.rpivotTable{ overflow: auto; }
+
+```
+
+```{r load-libraries, echo=FALSE}
+#install.packages - only need to run this code once to install the package
+# load required packages
+library(dplyr)
+library(tidyverse) #need to call the library before you use the packages
+library(rpivotTable)
+library(knitr)
+library(readxl) # this is required for the read_excel function
+Bank_Credit_Data <- read_excel("/Users/minhchau/Downloads/Bank Credit Risk Data.xlsx", sheet="Base Data", skip=2)
+BD <- Bank_Credit_Data
+head(BD)
+```
+
+### 1. Customer Profile Dashboard for Credit Risk Analysis 
+
+- i.View the frequency distributions for each of the following customer demographic variables in a chart and table (i.e. one table and chart per variable): `Credit Risk` and `Total`. `Total` is the sum of `Checking` and `Savings`. (hint: You will need to create the variable `Total` in the dataframe). 
+- ii. View the relationship between `Total` and `Months Employed` in one chart, and the relationship between `Total` and `Age` in another chart.
+- iii. Provide a description of any interesting patterns observed from the charts. (You may type your answer in the space below)
+- iv. Frequency distributions for  `Housing`, `Job` and `Months Employed` on your own. 
+
+```{r q1.(a), echo=TRUE}
+BD$Total <- BD$Checking+BD$Savings
+BD <- BD %>%
+  mutate(Total = Checking+Savings)
+
+crFreq <- BD%>%count(`Credit Risk`)
+kable(crFreq, caption = "Frequency of Bank Customers by Credit Risk")
+slice.cr <- crFreq$n
+cr.piepercent <- 100*round(crFreq$n/sum(crFreq$n),2)
+label<-crFreq$`Credit Risk`
+label<-paste(label, ",", sep="")
+label<-paste(label,cr.piepercent)
+label<-paste(label, "%", sep="")
+pie(slice.cr,
+    labels=label,
+    col=c("blue", "cyan"),
+    radius=1,
+    main="Customer Credit Risk")
+h.tot <- hist(BD$Total,
+              main="Histogram of customer total amount balance",
+              xlab="Total account balance",
+              ylab="No. of Customers",
+              col=c("darkorange"),
+              ylim=c(0,400),
+              labels=TRUE)
+ab.Group <- cut(BD$Total, h.tot$breaks, include.lowest = TRUE, dig.lab=5)
+t.emp<- table(ab.Group)
+kable(t.emp, caption = "Frequency distribution by Total Account Balance")
+plot(BD$Total,
+     BD$`Months Employed`,
+     main="Scatterplot of months memployed  to total",
+     ylab="Months employed", xlab="Total")
+plot(BD$Total, BD$Age, main="Scatterplot of Age  to Total",ylab="Age", xlab="Total")
+
+JobFreq <- BD%>% count(Job)
+kable(JobFreq, caption="Frequency of Bank Customers by Job")
+
+slice.job <- JobFreq$n
+job.piepercent <- 100*round(JobFreq$n/sum(JobFreq$n),2)
+label <- JobFreq$Job
+label <- paste(label, ",", sep="")
+label <- paste(label, job.piepercent)
+label <- paste(label, "%", sep="")
+pie(slice.job,
+    labels = label,
+    col=c("blue", "cyan", "dodgerblue", "deepskyblue"),
+    radius=1,
+    main="Customer Job")
+```
+
+### 2. Customers' Demographics 
+- i. see the appropriate chart and table to compare frequency of customers by `Credit Risk` and `Job`.  
+- ii. see a description of any interesting patterns observed from the charts.
+
+```{r q1.(b), echo=TRUE}
+
+BDb1 <- BD %>% group_by(`Credit Risk`, Job)%>% tally()
+BDb1.spread <- BDb1 %>% spread(key = Job, value=n)
+kable(BDb1.spread, caption = "Contrigency table for Credit risk and Job")
+barmatrix.BDb1 <- as.matrix(BDb1.spread[,c(2:5)])
+barcol <-c("blue", "gray")
+barplot(barmatrix.BDb1,
+        col=barcol,
+        main="Frequency of Customer by Credit Risk and Job",
+        ylab="No.og customers",
+        xlab="Job")
+legend("topright",
+       cex=0.6,
+       fill=barcol,
+       legend=BDb1.spread$`Credit Risk`,
+       title="Credit Risk")
+barplot(barmatrix.BDb1,
+        col=barcol,
+        main="Frequency of Customer by Credit risk and Job",
+        ylab="No.of Customers",
+        xlab="Job",
+        beside=TRUE)
+legend("topright", cex=0.6, fill=barcol, legend=BDb1.spread$`Credit Risk`, title = "Credit Risk")
+
+```
+
+### 3. Credit Risk Analysis 
+
+- i. View the the `Loan Purpose` of customers with "High" levels of `Credit Risk`. Visualize the frequency distribution of `Loan Purpose` for "High" `Credit Risk` customers
+- ii. The most and least common `Loan Purpose` types among "High" `Credit Risk` customers
+
+```{r q1.(c), echo=TRUE}
+LoanHRFreq<- BD%>%
+  filter (`Credit Risk` == "High") %>%
+  count(`Loan Purpose`)
+kable(LoanHRFreq, caption = "Frequency Distribution for Loan Purpose for High CR Customers")
+LoanHRbar <- LoanHRFreq$n
+bploanHR <- barplot(LoanHRbar, names.arg = LoanHRFreq$`Loan Purpose`,
+        col="blue",
+        main="Frequency of Loan Purpose for High CR Customers",
+        cex.names = 0.8,
+        xlim=c(0,80),
+        xlab="No. of Loans",
+        horiz=TRUE,
+        las=1)
+text(x=LoanHRbar, y=bploanHR, col="black", LoanHRFreq$n, cex=0.8, pos=4)
+LoanMax <- LoanHRFreq%>% slice_max(n, n=1)
+LoanMin <- LoanHRFreq%>% slice_min(n, n=1)
+rbind(LoanMax, LoanMin)
+
+```
+
+Q1.(d) Customer Account Balance Pareto Analyses
+Show the number and percentage of customers that contribute most, amounting to 80% of the total account balanced with the bank. 
+
+```{r q1.(d), echo=TRUE}
+
+BD.tot <- BD %>%
+  select(Total)%>%
+  arrange(desc(Total))
+BD.tot$Percentage <-BD.tot$Total/sum(BD.tot$Total)
+BD.tot$Cumulative <- cumsum(BD.tot$Percentage)
+BD.tot$Cumulative.cust<-as.numeric(rownames(BD))/nrow(BD)
+which(BD.tot$Cumulative>0.8)[1]
+(which(BD.tot$Cumulative>0.8)[1])/nrow(BD)
+```
