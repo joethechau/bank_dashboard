@@ -1,4 +1,4 @@
-##Bank Customer Dashboard: Credit Risk Analysis and Demographic Insights – R
+# Bank Customer Dashboard: Credit Risk Analysis and Demographic Insights – R
 <p><strong>Explored banking data to uncover patterns in credit risk, customer demographics, and account balances.</strong></p> 
 <ul> 
   <li>Created a <code>Total</code> variable by combining <code>Checking</code> and <code>Savings</code> balances.</li> 
